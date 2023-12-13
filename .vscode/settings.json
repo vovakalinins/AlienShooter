@@ -1,0 +1,9 @@
+{
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "c:\\Users\\ZipTop\\Documents\\NetBeansProjects\\VovasTDBase\\jinput.jar",
+        "c:\\Users\\ZipTop\\Documents\\NetBeansProjects\\VovasTDBase\\lwjgl.jar",
+        "c:\\Users\\ZipTop\\Documents\\NetBeansProjects\\VovasTDBase\\lwjgl_util.jar",
+        "c:\\Users\\ZipTop\\Documents\\NetBeansProjects\\VovasTDBase\\slick.jar"
+    ]
+}
