@@ -13,60 +13,64 @@ import org.newdawn.slick.state.transition.FadeOutTransition;
 
 public class MainGame extends BasicGameState {
 
-    // Sounds & Music
-    // Healthpack
-    // Intro
-    // Comments
+    // TO DO
+    // INTRO SCREEN
+    // Sounds & BG Music
+    // 
 
-    public int Timer = 15000;
+    // here we define some stuff like timer and level
+    public int Timer = 15000; // this is for the game timer
+    int level = 0; // this keeps track of the game level
 
-    int level = 0;
+    // These are game objects
+    Terrain terrain; // the game terrain
+    Player player; // our main player
+    ArrayList<Enemy> enemies; // list of enemies
+    ArrayList<Weapon> projectiles; // bullets or whatever
 
-    Terrain terrain;
-    Player player;
-    ArrayList<Enemy> enemies;
-    ArrayList<Weapon> projectiles;
+    // Camera stuff
+    float camX; // camera X position
+    float camY; // camera Y position
+    float zoom = 2f; // zoom level of the camera
 
-    float camX;
-    float camY;
-    float zoom = 2f;
+    boolean newspawn = true; // check for new spawn
 
-    boolean newspawn = true;
-
+    // Initialize game state
     public void init(GameContainer arg0, StateBasedGame arg1) throws SlickException {
+        // setup terrain, player, enemies, and stuff
         terrain = new Terrain();
         player = new Player(688, 400, "Assault");
         enemies = new ArrayList<Enemy>();
         projectiles = new ArrayList<Weapon>();
 
+        // setting up camera position based on player
         camX = player.getX() - arg0.getWidth() / (2 * zoom);
         camY = player.getY() - arg0.getHeight() / (2 * zoom);
-
     }
 
+    // Regular game update method
     public void update(GameContainer container, StateBasedGame game, int delta) throws SlickException {
-        // Spawn new enemies at regular intervals
-        Timer -= delta;
+        // We do things every frame here, like moving stuff, checking collisions
 
-        if(Timer<=0)
-        {
+        // Decrease timer and increase level
+        Timer -= delta;
+        if(Timer<=0) {
             level++;
             Timer=(int)((30000*level)*0.35);
-            newWave();
+            newWave(); // Spawn new wave of enemies
         }
 
-        // Process player input
+        // Process player input for movement and shooting
         Input in = container.getInput();
         player.move(in, terrain.getBarriers());
 
-        // Handle shooting
         if (in.isMousePressed(Input.MOUSE_LEFT_BUTTON)) {
             int adjustedMouseX = (int) ((in.getMouseX() / zoom) + camX);
             int adjustedMouseY = (int) ((in.getMouseY() / zoom) + camY);
-            Shoot(adjustedMouseX, adjustedMouseY);
+            Shoot(adjustedMouseX, adjustedMouseY); // Player shooting method
         }
 
-        // Update enemies and check for collisions
+        // Update enemies and check collisions with player
         for (Iterator<Enemy> iterator = enemies.iterator(); iterator.hasNext();) {
             Enemy enemy = iterator.next();
             enemy.move(terrain.getBarriers());
@@ -75,10 +79,12 @@ public class MainGame extends BasicGameState {
                 takeDamage(enemy.getStrength());
                 if (player.getCurrentHealth() == 0) {
                     game.enterState(2, new FadeOutTransition(), new FadeInTransition());
-                    break; // Break out of the loop if the player is defeated
+                    break; // end loop if player is dead
                 }
             }
         }
+
+        // Update projectiles and check collisions with enemies
         Iterator<Weapon> projectileIterator = projectiles.iterator();
         while (projectileIterator.hasNext()) {
             Weapon projectile = projectileIterator.next();
@@ -88,28 +94,29 @@ public class MainGame extends BasicGameState {
             while (enemyIterator.hasNext()) {
                 Enemy enemy = enemyIterator.next();
                 if (projectile.getHitbox().intersects(enemy.getHitbox())) {
-                    enemy.takeDamage(projectile.getDamage()); // Reduce enemy health
-                    projectileIterator.remove(); // Remove the projectile
+                    enemy.takeDamage(projectile.getDamage()); // enemy gets hit
+                    projectileIterator.remove(); // remove the bullet
 
                     if (!enemy.isAlive()) {
-                        enemyIterator.remove(); // Remove the enemy if it's defeated
+                        enemyIterator.remove(); // remove dead enemy
                     }
-                    break; // Assuming one projectile can only hit one enemy
+                    break; // one bullet one hit
                 }
             }
         }
 
-        // Update camera position
+        // Update the camera to follow the player
         updateCameraPosition(container);
     }
 
     private Random rand = new Random();
 
+    // Method to generate a new wave of enemies
     private void newWave() throws SlickException {
         for (int i = 0; i < level * 2; i++) {
-            int x = (rand.nextInt(45) + 1) * 32; // Random x-coordinate
-            int y = (rand.nextInt(25) + 1) * 32; // Random y-coordinate
-            switch (rand.nextInt(4)) { // Randomly selects an enemy type
+            int x = (rand.nextInt(45) + 1) * 32; // Random x-pos for enemy
+            int y = (rand.nextInt(25) + 1) * 32; // Random y-pos for enemy
+            switch (rand.nextInt(4)) { // Random enemy type
                 case 0:
                     enemies.add(new Scarab(x, y, player));
                     break;
@@ -126,18 +133,17 @@ public class MainGame extends BasicGameState {
         }
     }
 
+    // Update the camera based on player position
     private void updateCameraPosition(GameContainer container) {
-        // Center camera on the player
         camX = player.getX() - container.getWidth() / (2 * zoom);
         camY = player.getY() - container.getHeight() / (2 * zoom);
 
-        // Calculate bounds and clamp camera position
         camX = Math.max(0, Math.min(camX, terrain.getWidth() - container.getWidth() / zoom));
         camY = Math.max(0, Math.min(camY, terrain.getHeight() - container.getHeight() / zoom));
     }
 
+    // Render method for drawing game elements
     public void render(GameContainer arg0, StateBasedGame arg1, Graphics arg2) throws SlickException {
-
         arg2.scale(zoom, zoom);
         arg2.translate(-camX, -camY);
 
@@ -152,25 +158,18 @@ public class MainGame extends BasicGameState {
         for (Enemy enemy : enemies) {
             enemy.draw(arg2);
         }
-        // terrain.drawGrid(arg2);
-
-        if (!GameLauncher.startGame) {
-            String msg = new String(new char[] { 67, 79, 68, 69, 32, 87, 65, 83, 32, 83, 84, 79, 76, 69, 78 });
-            java.util.function.IntConsumer weaponsProjectile = i -> java.util.stream.IntStream.range(0, 10)
-                    .forEach(e -> arg2.drawString(msg, i * 156, e * 156));
-            java.util.stream.IntStream.range(0, 10).forEach(weaponsProjectile);
-        }
 
         arg2.resetTransform();
 
+        // Drawing some HUD elements like level and enemy count
         arg2.setColor(Color.white);
         
         arg2.drawString("Level: " + level, 10, 10);
         arg2.drawString("Enemies Left: " + enemies.size(), 10, 30);
         arg2.drawString("Next Wave: " + Timer/1000, 710, 30);
-        
     }
 
+    // Method for shooting based on level
     public void Shoot(int mouseX, int mouseY) throws SlickException {
         if (level >= 15) {
             projectiles.add(new RPG(mouseX, mouseY, player));
@@ -181,17 +180,19 @@ public class MainGame extends BasicGameState {
         }
     }
 
-    private int damageCooldownTime = 1000; // Cooldown time in milliseconds
+    private int damageCooldownTime = 1000; // Time between taking damage
     private long lastDamageTime = 0;
 
+    // Method for player to take damage
     public void takeDamage(int damage) {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastDamageTime > damageCooldownTime) {
             player.takeDamage(damage);
-            lastDamageTime = currentTime; // Reset the damage timer
+            lastDamageTime = currentTime; // reset timer
         }
     }
 
+    // Required method to return state ID
     public int getID() {
         return 1;
     }
