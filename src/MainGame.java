@@ -5,7 +5,9 @@ import org.newdawn.slick.Color;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Input;
+import org.newdawn.slick.Music;
 import org.newdawn.slick.SlickException;
+import org.newdawn.slick.Sound;
 import org.newdawn.slick.state.BasicGameState;
 import org.newdawn.slick.state.StateBasedGame;
 import org.newdawn.slick.state.transition.FadeInTransition;
@@ -16,10 +18,10 @@ public class MainGame extends BasicGameState {
     // TO DO
     // INTRO SCREEN
     // Sounds & BG Music
-    // 
+    //
 
     // here we define some stuff like timer and level
-    public int Timer = 15000; // this is for the game timer
+    public int Timer = 5000; // this is for the game timer
     int level = 0; // this keeps track of the game level
 
     // These are game objects
@@ -27,6 +29,7 @@ public class MainGame extends BasicGameState {
     Player player; // our main player
     ArrayList<Enemy> enemies; // list of enemies
     ArrayList<Weapon> projectiles; // bullets or whatever
+    Heal heal;
 
     // Camera stuff
     float camX; // camera X position
@@ -34,6 +37,9 @@ public class MainGame extends BasicGameState {
     float zoom = 2f; // zoom level of the camera
 
     boolean newspawn = true; // check for new spawn
+
+    Sound newwave, enemy, shoot, die, hurt, health;
+    Music bgmusic = null;
 
     // Initialize game state
     public void init(GameContainer arg0, StateBasedGame arg1) throws SlickException {
@@ -43,6 +49,17 @@ public class MainGame extends BasicGameState {
         enemies = new ArrayList<Enemy>();
         projectiles = new ArrayList<Weapon>();
 
+        bgmusic = new Music("backgroundmusic.aiff");
+        bgmusic.loop(1, 0.10f);
+
+        newwave = new Sound("newwave.wav");
+        enemy = new Sound("enemy1.wav");
+        shoot = new Sound("shoot.wav");
+        die = new Sound("die.wav");
+        hurt = new Sound("hurt.wav");
+        health = new Sound("heal.wav");
+
+        newHeal();
         // setting up camera position based on player
         camX = player.getX() - arg0.getWidth() / (2 * zoom);
         camY = player.getY() - arg0.getHeight() / (2 * zoom);
@@ -54,10 +71,11 @@ public class MainGame extends BasicGameState {
 
         // Decrease timer and increase level
         Timer -= delta;
-        if(Timer<=0) {
+        if (Timer <= 0) {
             level++;
-            Timer=(int)((30000*level)*0.35);
+            Timer = (int) ((30000 * level) * 0.35);
             newWave(); // Spawn new wave of enemies
+            newHeal();
         }
 
         // Process player input for movement and shooting
@@ -79,9 +97,16 @@ public class MainGame extends BasicGameState {
                 takeDamage(enemy.getStrength());
                 if (player.getCurrentHealth() == 0) {
                     game.enterState(2, new FadeOutTransition(), new FadeInTransition());
+                    die.play();
                     break; // end loop if player is dead
                 }
             }
+        }
+
+        if (player.getHitbox().intersects(heal.getHitbox())) {
+            health.play();
+            heal.healed();
+            player.heal(100 - player.getCurrentHealth());
         }
 
         // Update projectiles and check collisions with enemies
@@ -98,6 +123,7 @@ public class MainGame extends BasicGameState {
                     projectileIterator.remove(); // remove the bullet
 
                     if (!enemy.isAlive()) {
+                        die.play();
                         enemyIterator.remove(); // remove dead enemy
                     }
                     break; // one bullet one hit
@@ -113,6 +139,7 @@ public class MainGame extends BasicGameState {
 
     // Method to generate a new wave of enemies
     private void newWave() throws SlickException {
+        newwave.play();
         for (int i = 0; i < level * 2; i++) {
             int x = (rand.nextInt(45) + 1) * 32; // Random x-pos for enemy
             int y = (rand.nextInt(25) + 1) * 32; // Random y-pos for enemy
@@ -131,6 +158,13 @@ public class MainGame extends BasicGameState {
                     break;
             }
         }
+    }
+
+    private void newHeal() throws SlickException {
+        int x = (rand.nextInt(44) + 1) * 32; // Random x-pos for heal
+        int y = (rand.nextInt(24) + 1) * 32; // Random y-pos for heal
+        System.out.println(x + " " + y);
+        heal = new Heal(x, y);
     }
 
     // Update the camera based on player position
@@ -153,6 +187,8 @@ public class MainGame extends BasicGameState {
             projectile.draw(arg2);
         }
 
+        heal.draw();
+
         player.draw(arg2);
 
         for (Enemy enemy : enemies) {
@@ -163,10 +199,10 @@ public class MainGame extends BasicGameState {
 
         // Drawing some HUD elements like level and enemy count
         arg2.setColor(Color.white);
-        
+
         arg2.drawString("Level: " + level, 10, 10);
         arg2.drawString("Enemies Left: " + enemies.size(), 10, 30);
-        arg2.drawString("Next Wave: " + Timer/1000, 710, 30);
+        arg2.drawString("Next Wave: " + Timer / 1000, 710, 30);
     }
 
     // Method for shooting based on level
@@ -178,6 +214,7 @@ public class MainGame extends BasicGameState {
         } else if (level <= 4) {
             projectiles.add(new Bullets(mouseX, mouseY, player));
         }
+        shoot.play();
     }
 
     private int damageCooldownTime = 1000; // Time between taking damage
@@ -187,6 +224,7 @@ public class MainGame extends BasicGameState {
     public void takeDamage(int damage) {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastDamageTime > damageCooldownTime) {
+            hurt.play();
             player.takeDamage(damage);
             lastDamageTime = currentTime; // reset timer
         }
